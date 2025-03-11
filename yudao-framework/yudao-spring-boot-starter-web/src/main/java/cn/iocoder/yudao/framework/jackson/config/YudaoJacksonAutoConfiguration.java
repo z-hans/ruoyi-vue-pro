@@ -24,6 +24,11 @@ import java.util.List;
 @Slf4j
 public class YudaoJacksonAutoConfiguration {
 
+    // 配置SpringBoot默认的jackson配置, 也可以通过springboot的配置文件去配置(spring.jackson.*)
+    // 这个地方有个巧思, 本来Utils类是不用实例化到容器中的, 当中的方法都是静态方法, 但是这里想将两件事合在一起做
+    // 1. 配置springboot中jackson的序列化和反序列化
+    // 2. 让自己的jsonUtils工具类中序列化和反序列化与spring中的保持一致
+    // 技术上这里通过将自己注册到容器中, 由于自己依赖List<ObjectMapper>实例, 所以spring容器会按照类型注入实例
     @Bean
     @SuppressWarnings("InstantiationOfUtilityClass")
     public JsonUtils jsonUtils(List<ObjectMapper> objectMappers) {
