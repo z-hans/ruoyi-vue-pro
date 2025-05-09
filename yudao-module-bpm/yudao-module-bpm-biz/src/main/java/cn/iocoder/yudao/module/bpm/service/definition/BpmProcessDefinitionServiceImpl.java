@@ -12,6 +12,8 @@ import cn.iocoder.yudao.module.bpm.dal.dataobject.definition.BpmProcessDefinitio
 import cn.iocoder.yudao.module.bpm.dal.mysql.definition.BpmProcessDefinitionInfoMapper;
 import cn.iocoder.yudao.module.bpm.framework.flowable.core.enums.BpmnModelConstants;
 import cn.iocoder.yudao.module.bpm.framework.flowable.core.util.FlowableUtils;
+import cn.iocoder.yudao.module.system.api.user.AdminUserApi;
+import cn.iocoder.yudao.module.system.api.user.dto.AdminUserRespDTO;
 import lombok.extern.slf4j.Slf4j;
 import org.flowable.bpmn.model.BpmnModel;
 import org.flowable.common.engine.impl.db.SuspensionState;
@@ -28,8 +30,7 @@ import java.util.*;
 
 import static cn.iocoder.yudao.framework.common.exception.util.ServiceExceptionUtil.exception;
 import static cn.iocoder.yudao.framework.common.util.collection.CollectionUtils.addIfNotNull;
-import static cn.iocoder.yudao.module.bpm.enums.ErrorCodeConstants.PROCESS_DEFINITION_KEY_NOT_MATCH;
-import static cn.iocoder.yudao.module.bpm.enums.ErrorCodeConstants.PROCESS_DEFINITION_NAME_NOT_MATCH;
+import static cn.iocoder.yudao.module.bpm.enums.ErrorCodeConstants.*;
 import static java.util.Collections.emptyList;
 
 /**
@@ -50,6 +51,9 @@ public class BpmProcessDefinitionServiceImpl implements BpmProcessDefinitionServ
 
     @Resource
     private BpmProcessDefinitionInfoMapper processDefinitionMapper;
+
+    @Resource
+    private AdminUserApi adminUserApi;
 
     @Override
     public ProcessDefinition getProcessDefinition(String id) {
@@ -89,12 +93,22 @@ public class BpmProcessDefinitionServiceImpl implements BpmProcessDefinitionServ
         if (processDefinition == null) {
             return false;
         }
-        // 为空，则所有人都可以发起
-        if (CollUtil.isEmpty(processDefinition.getStartUserIds())) {
-            return true;
+
+        // 校验用户是否在允许发起的用户列表中
+        if (CollUtil.isNotEmpty(processDefinition.getStartUserIds())) {
+            return processDefinition.getStartUserIds().contains(userId);
         }
-        // 不为空，则需要存在里面
-        return processDefinition.getStartUserIds().contains(userId);
+
+        // 校验用户是否在允许发起的部门列表中
+        if (CollUtil.isNotEmpty(processDefinition.getStartDeptIds())) {
+            AdminUserRespDTO user = adminUserApi.getUser(userId);
+            return user != null
+                    && user.getDeptId() != null
+                    && processDefinition.getStartDeptIds().contains(user.getDeptId());
+        }
+
+        // 都为空，则所有人都可以发起
+        return true;
     }
 
     @Override
@@ -144,9 +158,8 @@ public class BpmProcessDefinitionServiceImpl implements BpmProcessDefinitionServ
 
         // 插入拓展表
         BpmProcessDefinitionInfoDO definitionDO = BeanUtils.toBean(modelMetaInfo, BpmProcessDefinitionInfoDO.class)
-                .setModelId(model.getId()).setProcessDefinitionId(definition.getId())
+                .setModelId(model.getId()).setCategory(model.getCategory()).setProcessDefinitionId(definition.getId())
                 .setModelType(modelMetaInfo.getType()).setSimpleModel(simpleJson);
-
         if (form != null) {
             definitionDO.setFormFields(form.getFields()).setFormConf(form.getConf());
         }
@@ -156,16 +169,25 @@ public class BpmProcessDefinitionServiceImpl implements BpmProcessDefinitionServ
 
     @Override
     public void updateProcessDefinitionState(String id, Integer state) {
+        ProcessDefinition processDefinition = repositoryService.getProcessDefinition(id);
+        if (processDefinition == null) {
+            throw exception(PROCESS_DEFINITION_NOT_EXISTS);
+        }
+
         // 激活
         if (Objects.equals(SuspensionState.ACTIVE.getStateCode(), state)) {
-            repositoryService.activateProcessDefinitionById(id, false, null);
+            if (processDefinition.isSuspended()) {
+                repositoryService.activateProcessDefinitionById(id, false, null);
+            }
             return;
         }
         // 挂起
         if (Objects.equals(SuspensionState.SUSPENDED.getStateCode(), state)) {
             // suspendProcessInstances = false，进行中的任务，不进行挂起。
             // 原因：只要新的流程不允许发起即可，老流程继续可以执行。
-            repositoryService.suspendProcessDefinitionById(id, false, null);
+            if (!processDefinition.isSuspended()) {
+                repositoryService.suspendProcessDefinitionById(id, false, null);
+            }
             return;
         }
         log.error("[updateProcessDefinitionState][流程定义({}) 修改未知状态({})]", id, state);

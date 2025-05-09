@@ -21,6 +21,7 @@ import cn.iocoder.yudao.module.promotion.enums.coupon.CouponTakeTypeEnum;
 import cn.iocoder.yudao.module.promotion.enums.coupon.CouponTemplateValidityTypeEnum;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 
@@ -121,6 +122,10 @@ public class CouponServiceImpl implements CouponService {
     @Transactional(rollbackFor = Exception.class)
     public Map<Long, List<Long>> takeCoupon(Long templateId, Set<Long> userIds, CouponTakeTypeEnum takeType) {
         CouponTemplateDO template = couponTemplateService.getCouponTemplate(templateId);
+        return takeCoupon(template, userIds, takeType);
+    }
+
+    private Map<Long, List<Long>> takeCoupon(CouponTemplateDO template, Set<Long> userIds, CouponTakeTypeEnum takeType) {
         // 1. 过滤掉达到领取限制的用户
         removeTakeLimitUser(userIds, template);
         // 2. 校验优惠劵是否可以领取
@@ -131,7 +136,7 @@ public class CouponServiceImpl implements CouponService {
         couponMapper.insertBatch(couponList);
 
         // 4. 增加优惠劵模板的领取数量
-        couponTemplateService.updateCouponTemplateTakeCount(templateId, userIds.size());
+        couponTemplateService.updateCouponTemplateTakeCount(template.getId(), userIds.size());
 
         return convertMultiMap(couponList, CouponDO::getUserId, CouponDO::getId);
     }
@@ -176,7 +181,7 @@ public class CouponServiceImpl implements CouponService {
      * @param couponId 模版编号
      * @param userId   用户编号
      */
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, propagation = Propagation.REQUIRES_NEW) // 每次调用开启一个新的事务，避免在一个大的事务里面
     public void invalidateCoupon(Long couponId, Long userId) {
         if (couponId == null || couponId <= 0) {
             return;
@@ -208,7 +213,7 @@ public class CouponServiceImpl implements CouponService {
     public void takeCouponByRegister(Long userId) {
         List<CouponTemplateDO> templates = couponTemplateService.getCouponTemplateListByTakeType(CouponTakeTypeEnum.REGISTER);
         for (CouponTemplateDO template : templates) {
-            takeCoupon(template.getId(), CollUtil.newHashSet(userId), CouponTakeTypeEnum.REGISTER);
+            takeCoupon(template, CollUtil.newHashSet(userId), CouponTakeTypeEnum.REGISTER);
         }
     }
 
@@ -266,13 +271,17 @@ public class CouponServiceImpl implements CouponService {
         if (CollUtil.isEmpty(userIds)) {
             throw exception(COUPON_TEMPLATE_USER_ALREADY_TAKE);
         }
-
         // 校验模板
         if (couponTemplate == null) {
             throw exception(COUPON_TEMPLATE_NOT_EXISTS);
         }
-        // 校验剩余数量
-        if (ObjUtil.notEqual(couponTemplate.getTakeLimitCount(), CouponTemplateDO.TIME_LIMIT_COUNT_MAX) // 非不限制
+        // 校验领取方式
+        if (ObjUtil.notEqual(couponTemplate.getTakeType(), takeType.getType())) {
+            throw exception(COUPON_TEMPLATE_CANNOT_TAKE);
+        }
+        // 校验发放数量不能过小（仅在 CouponTakeTypeEnum.USER 用户领取时）
+        if (CouponTakeTypeEnum.isUser(couponTemplate.getTakeType())
+                && ObjUtil.notEqual(couponTemplate.getTakeLimitCount(), CouponTemplateDO.TIME_LIMIT_COUNT_MAX) // 非不限制
                 && couponTemplate.getTakeCount() + userIds.size() > couponTemplate.getTotalCount()) {
             throw exception(COUPON_TEMPLATE_NOT_ENOUGH);
         }
@@ -281,10 +290,6 @@ public class CouponServiceImpl implements CouponService {
             if (LocalDateTimeUtils.beforeNow(couponTemplate.getValidEndTime())) {
                 throw exception(COUPON_TEMPLATE_EXPIRED);
             }
-        }
-        // 校验领取方式
-        if (ObjectUtil.notEqual(couponTemplate.getTakeType(), takeType.getType())) {
-            throw exception(COUPON_TEMPLATE_CANNOT_TAKE);
         }
     }
 

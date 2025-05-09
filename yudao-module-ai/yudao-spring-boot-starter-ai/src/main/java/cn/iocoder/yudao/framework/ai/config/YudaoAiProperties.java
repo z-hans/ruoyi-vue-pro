@@ -16,12 +16,38 @@ public class YudaoAiProperties {
     /**
      * DeepSeek
      */
-    private DeepSeekProperties deepSeek;
+    @SuppressWarnings("SpellCheckingInspection")
+    private DeepSeekProperties deepseek;
+
+    /**
+     * 字节豆包
+     */
+    @SuppressWarnings("SpellCheckingInspection")
+    private DouBaoProperties doubao;
+
+    /**
+     * 腾讯混元
+     */
+    @SuppressWarnings("SpellCheckingInspection")
+    private HunYuanProperties hunyuan;
+
+    /**
+     * 硅基流动
+     */
+    @SuppressWarnings("SpellCheckingInspection")
+    private SiliconFlowProperties siliconflow;
 
     /**
      * 讯飞星火
      */
+    @SuppressWarnings("SpellCheckingInspection")
     private XingHuoProperties xinghuo;
+
+    /**
+     * 百川
+     */
+    @SuppressWarnings("SpellCheckingInspection")
+    private BaiChuanProperties baichuan;
 
     /**
      * Midjourney 绘图
@@ -31,7 +57,61 @@ public class YudaoAiProperties {
     /**
      * Suno 音乐
      */
+    @SuppressWarnings("SpellCheckingInspection")
     private SunoProperties suno;
+
+    @Data
+    public static class DeepSeekProperties {
+
+        private String enable;
+        private String apiKey;
+
+        private String model;
+        private Double temperature;
+        private Integer maxTokens;
+        private Double topP;
+
+    }
+
+    @Data
+    public static class DouBaoProperties {
+
+        private String enable;
+        private String apiKey;
+
+        private String model;
+        private Double temperature;
+        private Integer maxTokens;
+        private Double topP;
+
+    }
+
+    @Data
+    public static class HunYuanProperties {
+
+        private String enable;
+        private String baseUrl;
+        private String apiKey;
+
+        private String model;
+        private Double temperature;
+        private Integer maxTokens;
+        private Double topP;
+
+    }
+
+    @Data
+    public static class SiliconFlowProperties {
+
+        private String enable;
+        private String apiKey;
+
+        private String model;
+        private Double temperature;
+        private Integer maxTokens;
+        private Double topP;
+
+    }
 
     @Data
     public static class XingHuoProperties {
@@ -42,22 +122,22 @@ public class YudaoAiProperties {
         private String secretKey;
 
         private String model;
-        private Float temperature;
+        private Double temperature;
         private Integer maxTokens;
-        private Integer topK;
+        private Double topP;
 
     }
 
     @Data
-    public static class DeepSeekProperties {
+    public static class  BaiChuanProperties {
 
         private String enable;
         private String apiKey;
 
         private String model;
-        private Float temperature;
+        private Double temperature;
         private Integer maxTokens;
-        private Float topP;
+        private Double topP;
 
     }
 

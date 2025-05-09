@@ -1,5 +1,6 @@
 package cn.iocoder.yudao.module.bpm.controller.admin.definition.vo.model;
 
+import cn.iocoder.yudao.module.bpm.controller.admin.base.dept.DeptSimpleBaseVO;
 import cn.iocoder.yudao.module.bpm.controller.admin.base.user.UserSimpleBaseVO;
 import cn.iocoder.yudao.module.bpm.controller.admin.definition.vo.model.simple.BpmSimpleModelNodeVO;
 import cn.iocoder.yudao.module.bpm.controller.admin.definition.vo.process.BpmProcessDefinitionRespVO;
@@ -25,7 +26,7 @@ public class BpmModelRespVO extends BpmModelMetaInfoVO {
     @Schema(description = "流程图标", example = "https://www.iocoder.cn/yudao.jpg")
     private String icon;
 
-    @Schema(description = "流程分类编码", example = "1")
+    @Schema(description = "流程分类编号", example = "1")
     private String category;
     @Schema(description = "流程分类名字", example = "请假")
     private String categoryName;
@@ -38,6 +39,9 @@ public class BpmModelRespVO extends BpmModelMetaInfoVO {
 
     @Schema(description = "可发起的用户数组")
     private List<UserSimpleBaseVO> startUsers;
+
+    @Schema(description = "可发起的部门数组")
+    private List<DeptSimpleBaseVO> startDepts;
 
     @Schema(description = "BPMN XML")
     private String bpmnXml;
